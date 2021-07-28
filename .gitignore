@@ -109,6 +109,9 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+channels.db
+.vscode
+
 
 # Spyder project settings
 .spyderproject
