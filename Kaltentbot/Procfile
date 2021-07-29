@@ -1,2 +1,2 @@
-  
+web: python KaltentBot.py
 worker: python KaltentBot.py
