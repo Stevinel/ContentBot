@@ -22,7 +22,7 @@ PHOTO_PEPE_THINKING = (
 )
 PHOTO_ERIC_THINKING = "https://i.ytimg.com/vi/yDly4gmLLHg/mqdefault.jpg"
 DRIVER = webdriver.Chrome(
-    executable_path="C:\Dev\KaltentBot\KaltentBot\chromedriver.exe"
+    executable_path="chromedriver.exe"
 )
 DATE_FORMAT = "%d.%m.%Y"
 BOT = telebot.TeleBot(TELEGRAM_TOKEN)
@@ -406,7 +406,7 @@ def post_videos_to_watch(message):
 
 def parsing_new_video_from_channel():
     """Функция проверки новых видео на канале и добавления их в базу"""
-    threading.Timer(2400, parsing_new_video_from_channel).start()
+    threading.Timer(1500, parsing_new_video_from_channel).start()
 
     conn = get_connection()
     c = conn.cursor()
