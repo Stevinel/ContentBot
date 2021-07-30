@@ -22,7 +22,7 @@ PHOTO_PEPE_THINKING = (
 )
 PHOTO_ERIC_THINKING = "https://i.ytimg.com/vi/yDly4gmLLHg/mqdefault.jpg"
 DRIVER = webdriver.Chrome(
-    executable_path="chromedriver.exe"
+    executable_path="C:\Dev\KaltentBot\Kaltentbot\chromedriver.exe"
 )
 DATE_FORMAT = "%d.%m.%Y"
 BOT = telebot.TeleBot(TELEGRAM_TOKEN)
@@ -88,6 +88,7 @@ def selects_actions(message):
     )
     markup.add(telebot.types.InlineKeyboardButton(text="Смотреть калтент"))
     markup.add(telebot.types.InlineKeyboardButton(text="Добавить видео"))
+    markup.add(telebot.types.InlineKeyboardButton(text="Добавить канал"))
     markup.add(telebot.types.InlineKeyboardButton(text="Показать все видео"))
     markup.add(telebot.types.InlineKeyboardButton(text="Показать все каналы"))
 
@@ -135,7 +136,7 @@ def show_all_videos(message):
     conn = get_connection()
     c = conn.cursor()
     c.execute(
-        "SELECT video_url FROM channel_list WHERE video_url NOT NULL ORDER BY rating DESC"
+        "SELECT DISTINCT(video_url) FROM channel_list WHERE video_url NOT NULL ORDER BY rating DESC"
     )
     (urls) = c.fetchall()
 
@@ -155,7 +156,7 @@ def show_all_videos(message):
 
             BOT.send_message(
                 message.chat.id,
-                "★★★★★★★★★★★★★★★★★★★★★★★★★★★★★",
+                "★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★",
                 reply_markup=markup,
             )
     else:
@@ -234,7 +235,7 @@ def add_channel(message, channel_url):
         channel_url
         rating = message.text
         DRIVER.get(channel_url)
-        sleep(2)
+        sleep(1)
 
         channel_name = DRIVER.find_element_by_css_selector(
             "#channel-header #channel-name #text"
@@ -406,7 +407,7 @@ def post_videos_to_watch(message):
 
 def parsing_new_video_from_channel():
     """Функция проверки новых видео на канале и добавления их в базу"""
-    threading.Timer(1500, parsing_new_video_from_channel).start()
+    threading.Timer(2400, parsing_new_video_from_channel).start()
 
     conn = get_connection()
     c = conn.cursor()
