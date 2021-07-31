@@ -2,11 +2,13 @@ import datetime as dt
 import os
 import sqlite3
 import threading
+from logging import exception
 from time import sleep
 
 import telebot
 from dotenv import load_dotenv
 from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
 from telebot import types
 
 load_dotenv()
@@ -21,11 +23,13 @@ PHOTO_PEPE_THINKING = (
     "https://www.meme-arsenal.com/memes/8b3ef2c65d5763539e34a9bd5bff7b9d.jpg"
 )
 PHOTO_ERIC_THINKING = "https://i.ytimg.com/vi/yDly4gmLLHg/mqdefault.jpg"
-DRIVER = webdriver.Chrome(
-    executable_path="C:\Dev\KaltentBot\Kaltentbot\chromedriver.exe"
-)
 DATE_FORMAT = "%d.%m.%Y"
 BOT = telebot.TeleBot(TELEGRAM_TOKEN)
+
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+chrome_options.add_argument("--no-sandbox")
+DRIVER = webdriver.Chrome("/root/code/chromedriver", options=chrome_options)
 
 
 __connection = None
@@ -130,6 +134,10 @@ def process_step(message, video_url=None):
         selects_actions(message)
     elif message.text == "Показать все видео":
         show_all_videos(message)
+    elif message.text == "/start":
+        start_message(message)
+    elif message.text == "/menu":
+        selects_actions(message)
 
 
 def show_all_videos(message):
@@ -156,7 +164,7 @@ def show_all_videos(message):
 
             BOT.send_message(
                 message.chat.id,
-                "★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★★",
+                "▼▼▼▼▼▼▼",
                 reply_markup=markup,
             )
     else:
@@ -172,7 +180,9 @@ def show_all_channels(message):
     conn = get_connection()
     c = conn.cursor()
 
-    c.execute("SELECT DISTINCT(title) FROM channel_list WHERE title NOT NULL")
+    c.execute(
+        "SELECT DISTINCT(title) FROM channel_list WHERE title NOT NULL ORDER BY rating DESC"
+    )
     (channel_names) = c.fetchall()
 
     markup = types.ReplyKeyboardMarkup(
@@ -187,7 +197,9 @@ def show_all_channels(message):
         for name in channel_names:
             BOT.send_message(message.chat.id, f"{''.join(name)}")
         BOT.send_message(
-            message.chat.id, "Выберите действие:", reply_markup=markup
+            message.chat.id,
+            "Список окончен. Выберите действие:",
+            reply_markup=markup,
         )
     else:
         BOT.send_message(message.chat.id, "У вас не добавлены каналы.")
@@ -209,7 +221,7 @@ def add_channel_raiting(message):
         msg = BOT.send_message(
             message.chat.id,
             "Введите рейтинг канала от 1 до 10\n"
-            "Видео будут упорядочены по рейтингу канала от высшего к меньшему."
+            "Видео будут упорядочены по рейтингу канала от высшего к меньшему.",
         )
         channel_url = message.text
         BOT.register_next_step_handler(msg, add_channel, channel_url)
@@ -425,7 +437,10 @@ def parsing_new_video_from_channel():
         )[1].text
         videos = DRIVER.find_elements_by_id("video-title")
 
-        if date_of_publication == "1 час назад":
+        if (
+            date_of_publication == "1 час назад"
+            or date_of_publication == "1 hour ago"
+        ):
             for attr in range(len(videos)):
                 new_video = videos[attr].get_attribute("href")
                 channel_name = DRIVER.find_element_by_css_selector(
@@ -442,6 +457,7 @@ def parsing_new_video_from_channel():
                     "UPDATE channel_list SET rating = (SELECT rating FROM query_channel WHERE channel_list.title = query_channel.title)"
                 )
                 c.execute("DROP TABLE query_channel")
+                sleep(3)
                 conn.commit()
                 break
 
