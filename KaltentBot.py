@@ -162,11 +162,11 @@ def show_all_videos(message):
                 telebot.types.InlineKeyboardButton(text="Вернуться в меню")
             )
 
-            BOT.send_message(
-                message.chat.id,
-                "▼▼▼▼▼▼▼",
-                reply_markup=markup,
-            )
+        BOT.send_message(
+            message.chat.id,
+            "Список окончен. Выберите действие:",
+            reply_markup=markup,
+        )
     else:
         markup = types.ReplyKeyboardMarkup(
             one_time_keyboard=True, resize_keyboard=True
