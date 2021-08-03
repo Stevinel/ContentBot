@@ -97,7 +97,7 @@ def start_message(message):
     markup = types.ReplyKeyboardMarkup(
         one_time_keyboard=True, resize_keyboard=True
     )
-    markup.add(telebot.types.InlineKeyboardButton(text="Продолжить"))
+    markup.add(types.InlineKeyboardButton(text="🐾 Продолжить"))
     msg = BOT.send_message(message.chat.id, "Продолжаем?", reply_markup=markup)
     BOT.register_next_step_handler(msg, process_step)
 
@@ -109,11 +109,11 @@ def selects_actions(message):
     markup = types.ReplyKeyboardMarkup(
         one_time_keyboard=True, resize_keyboard=True
     )
-    markup.add(telebot.types.InlineKeyboardButton(text="Смотреть калтент"))
-    markup.add(telebot.types.InlineKeyboardButton(text="Добавить видео"))
-    markup.add(telebot.types.InlineKeyboardButton(text="Добавить канал"))
-    markup.add(telebot.types.InlineKeyboardButton(text="Показать все видео"))
-    markup.add(telebot.types.InlineKeyboardButton(text="Показать все каналы"))
+    markup.add(types.InlineKeyboardButton(text="🍻 Смотреть калтент"))
+    markup.add(types.InlineKeyboardButton(text="📀 Добавить видео"))
+    markup.add(types.InlineKeyboardButton(text="📹 Добавить канал"))
+    markup.add(types.InlineKeyboardButton(text="👀 Показать все видео"))
+    markup.add(types.InlineKeyboardButton(text="👀 Показать все каналы"))
 
     msg = BOT.send_photo(
         message.chat.id,
@@ -128,31 +128,31 @@ def selects_actions(message):
 @BOT.message_handler(content_types=["text"])
 def process_step(message, video_url=None):
     """Функция распределения действий"""
-    if message.text == "Смотреть калтент":
+    if message.text == "🍻 Смотреть калтент":
         BOT.send_message(
             message.chat.id, "Начинаем просмотр, хорошей зачилки."
         )
         sleep(1)
         post_videos_to_watch(message)
-    elif message.text == "Добавить видео":
+    elif message.text == "📀 Добавить видео":
         add_url_new_videos(message)
-    elif message.text == "Продолжить":
+    elif message.text == "🐾 Продолжить":
         selects_actions(message)
-    elif message.text == "Показать все каналы":
+    elif message.text == "👀 Показать все каналы":
         show_all_channels(message)
-    elif message.text == "Добавить канал":
+    elif message.text == "📹 Добавить канал":
         add_channel_url(message)
-    elif message.text == "Удалить канал":
+    elif message.text == "❌ Удалить канал":
         query_delete_channel(message)
-    elif message.text == "Отложить видео":
+    elif message.text == "👉 Отложить видео":
         deferral_video(message, video_url)
-    elif message.text == "Удалить видео":
+    elif message.text == "❌ Удалить видео":
         delete_video(message, video_url)
-    elif message.text == "Следующее видео":
+    elif message.text == "👉 Следующее видео":
         post_videos_to_watch(message)
-    elif message.text == "Вернуться в меню":
+    elif message.text == "👈 Вернуться в меню":
         selects_actions(message)
-    elif message.text == "Показать все видео":
+    elif message.text == "👀 Показать все видео":
         show_all_videos(message)
     elif message.text == "/start":
         start_message(message)
@@ -182,9 +182,7 @@ def show_all_videos(message):
             markup = types.ReplyKeyboardMarkup(
                 one_time_keyboard=True, resize_keyboard=True
             )
-            markup.add(
-                telebot.types.InlineKeyboardButton(text="Вернуться в меню")
-            )
+            markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
 
         BOT.send_message(
             message.chat.id,
@@ -195,7 +193,7 @@ def show_all_videos(message):
         markup = types.ReplyKeyboardMarkup(
             one_time_keyboard=True, resize_keyboard=True
         )
-        markup.add(telebot.types.InlineKeyboardButton(text="Вернуться в меню"))
+        markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
         BOT.send_message(message.chat.id, "Нет видео.", reply_markup=markup)
 
 
@@ -216,9 +214,9 @@ def show_all_channels(message):
     markup = types.ReplyKeyboardMarkup(
         one_time_keyboard=True, resize_keyboard=True
     )
-    markup.add(telebot.types.InlineKeyboardButton(text="Добавить канал"))
-    markup.add(telebot.types.InlineKeyboardButton(text="Удалить канал"))
-    markup.add(telebot.types.InlineKeyboardButton(text="Вернуться в меню"))
+    markup.add(types.InlineKeyboardButton(text="📹 Добавить канал"))
+    markup.add(types.InlineKeyboardButton(text="❌ Удалить канал"))
+    markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
 
     if channel_names:
         BOT.send_message(message.chat.id, "Список всех каналов:\n")
@@ -296,7 +294,7 @@ def add_channel(message, channel_url):
             f"Канал '{channel_name}' добавлен в базу.",
             reply_markup=markup,
         )
-        markup.add(telebot.types.InlineKeyboardButton(text="Вернуться в меню"))
+        markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
         conn.commit()
     else:
         BOT.send_message(
@@ -382,7 +380,7 @@ def delete_video(message, video_url):
     markup = types.ReplyKeyboardMarkup(
         one_time_keyboard=True, resize_keyboard=True
     )
-    markup.add(telebot.types.InlineKeyboardButton(text="Следующее видео"))
+    markup.add(types.InlineKeyboardButton(text="👉 Следующее видео"))
 
     BOT.send_message(message.chat.id, "Видео удалено.", reply_markup=markup)
     conn.commit()
@@ -400,7 +398,7 @@ def deferral_video(message, video_url):
     markup = types.ReplyKeyboardMarkup(
         one_time_keyboard=True, resize_keyboard=True
     )
-    markup.add(telebot.types.InlineKeyboardButton(text="Следующее видео"))
+    markup.add(types.InlineKeyboardButton(text="👉 Следующее видео"))
 
     BOT.send_message(message.chat.id, "Видео отложено.", reply_markup=markup)
     conn.commit()
@@ -430,13 +428,13 @@ def post_videos_to_watch(message):
                 one_time_keyboard=True, resize_keyboard=True
             )
             markup.add(
-                telebot.types.InlineKeyboardButton(text="Отложить видео")
+                types.InlineKeyboardButton(text="👉 Отложить видео")
             )
             markup.add(
-                telebot.types.InlineKeyboardButton(text="Удалить видео")
+                types.InlineKeyboardButton(text="❌ Удалить видео")
             )
             markup.add(
-                telebot.types.InlineKeyboardButton(text="Вернуться в меню")
+                types.InlineKeyboardButton(text="👈 Вернуться в меню")
             )
             msg = BOT.send_message(
                 message.chat.id, "Выберите действие:", reply_markup=markup
@@ -452,7 +450,7 @@ def post_videos_to_watch(message):
         markup = types.ReplyKeyboardMarkup(
             one_time_keyboard=True, resize_keyboard=True
         )
-        markup.add(telebot.types.InlineKeyboardButton(text="Вернуться в меню"))
+        markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
 
         BOT.send_message(message.chat.id, "Конец.", reply_markup=markup)
         BOT.register_next_step_handler(message, selects_actions)
