@@ -13,10 +13,11 @@ from telebot import types
 
 load_dotenv()
 logger.add(
-    'bot_debug.log', 
+    "bot_debug.log", 
     format="{time} {level} {message}", 
     level="DEBUG", 
-    rotation="10 MB", 
+    rotation= "10 MB",
+    retention="7 days",
     compression="zip",
     )
 
@@ -480,7 +481,7 @@ def parsing_new_video_from_channel():
         )[1].text
         logger.info("Bot trying to find elements by id")
         videos = DRIVER.find_elements_by_id("video-title")
-
+        
         if (
             date_of_publication == "1 час назад"
             or date_of_publication == "1 hour ago"
@@ -513,7 +514,7 @@ def parsing_new_video_from_channel():
                 logger.info("Bot added video and ready to work")
                 conn.commit()
                 break
-
+        logger.info("No new videos were found")
 
 if __name__ == "__main__":
     logger.info("Bot started work")
@@ -527,5 +528,5 @@ if __name__ == "__main__":
             thread1.start()
         except Exception as error:
             logger.error(error)
-            BOT.send_message(TELEGRAM_CHAT_ID, f'Ошибка при запуске {error}')
+            BOT.send_message(TELEGRAM_CHAT_ID, f'Error at startup {error}')
             sleep(30)
