@@ -6,12 +6,19 @@ from time import sleep
 
 import telebot
 from dotenv import load_dotenv
+from loguru import logger
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from telebot import types
 
 load_dotenv()
-
+logger.add(
+    'bot_debug.log', 
+    format="{time} {level} {message}", 
+    level="DEBUG", 
+    rotation="10 MB", 
+    compression="zip",
+    )
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
@@ -28,12 +35,21 @@ BOT = telebot.TeleBot(TELEGRAM_TOKEN)
 chrome_options = Options()
 chrome_options.add_argument("--headless")
 chrome_options.add_argument("--no-sandbox")
-DRIVER = webdriver.Chrome("/root/code/chromedriver", options=chrome_options)
+logger.info('bot trying to find chromedriver')
+try:
+    DRIVER = webdriver.Chrome(
+        "/root/code/chromedriver", 
+        options=chrome_options)
+except Exception as error:
+    trouble = logger.error('invalid path to chromedriver')
+    BOT.send_message(TELEGRAM_CHAT_ID, trouble)
+
 
 
 __connection = None
 
 
+@logger.catch
 def get_connection():
     """Функция подключения к базе данных"""
     global __connection
@@ -42,6 +58,7 @@ def get_connection():
     return __connection
 
 
+@logger.catch
 def init_db(force: bool = False):
     """Функция создания БД"""
     conn = get_connection()
@@ -64,6 +81,7 @@ def init_db(force: bool = False):
     conn.commit()
 
 
+@logger.catch
 @BOT.message_handler(commands=["start"])
 def start_message(message):
     """Функция приветствия"""
@@ -83,6 +101,7 @@ def start_message(message):
     BOT.register_next_step_handler(msg, process_step)
 
 
+@logger.catch
 @BOT.message_handler(commands=["menu"])
 def selects_actions(message):
     """Функция меню с выбором действий"""
@@ -104,6 +123,7 @@ def selects_actions(message):
     BOT.register_next_step_handler(msg, process_step)
 
 
+@logger.catch
 @BOT.message_handler(content_types=["text"])
 def process_step(message, video_url=None):
     """Функция распределения действий"""
@@ -139,6 +159,7 @@ def process_step(message, video_url=None):
         selects_actions(message)
 
 
+@logger.catch
 def show_all_videos(message):
     conn = get_connection()
     c = conn.cursor()
@@ -177,6 +198,7 @@ def show_all_videos(message):
         BOT.send_message(message.chat.id, "Нет видео.", reply_markup=markup)
 
 
+@logger.catch
 def show_all_channels(message):
     """Функция просмотра всех каналов"""
     conn = get_connection()
@@ -211,6 +233,7 @@ def show_all_channels(message):
         BOT.register_next_step_handler(message, selects_actions)
 
 
+@logger.catch
 @BOT.message_handler(commands=["add_channel_url"])
 def add_channel_url(message):
     """Функция ввода ссылки"""
@@ -218,6 +241,7 @@ def add_channel_url(message):
     BOT.register_next_step_handler(msg, add_channel_raiting)
 
 
+@logger.catch
 def add_channel_raiting(message):
     """Функция ввода рейтинга и проверки ссылки"""
     if message.text.startswith(
@@ -236,6 +260,7 @@ def add_channel_raiting(message):
         )
 
 
+@logger.catch
 def add_channel(message, channel_url):
     """Функция добавления нового канала"""
     conn = get_connection()
@@ -278,6 +303,7 @@ def add_channel(message, channel_url):
         )
 
 
+@logger.catch
 def query_delete_channel(message):
     """Функция удаления канала"""
     msg = BOT.send_message(
@@ -287,6 +313,7 @@ def query_delete_channel(message):
     BOT.register_next_step_handler(msg, delete_channel)
 
 
+@logger.catch
 def delete_channel(message):
     """Функция удаления канала из базы"""
     conn = get_connection()
@@ -309,6 +336,7 @@ def delete_channel(message):
         BOT.register_next_step_handler(message, delete_channel)
 
 
+@logger.catch
 def add_url_new_videos(message):
     """Функция добавления новых видео"""
     BOT.send_message(
@@ -317,6 +345,7 @@ def add_url_new_videos(message):
     BOT.register_next_step_handler(message, add_new_video)
 
 
+@logger.catch
 def add_new_video(message):
     """Функция добавления нового видео в базу"""
     conn = get_connection()
@@ -342,6 +371,7 @@ def add_new_video(message):
         )
 
 
+@logger.catch
 def delete_video(message, video_url):
     """Функция удаления видео из базы"""
     conn = get_connection()
@@ -357,6 +387,7 @@ def delete_video(message, video_url):
     conn.commit()
 
 
+@logger.catch
 def deferral_video(message, video_url):
     conn = get_connection()
     c = conn.cursor()
@@ -374,6 +405,7 @@ def deferral_video(message, video_url):
     conn.commit()
 
 
+@logger.catch
 def post_videos_to_watch(message):
     """Функция выдачи видео для просмотра контента"""
     conn = get_connection()
@@ -425,6 +457,7 @@ def post_videos_to_watch(message):
         BOT.register_next_step_handler(message, selects_actions)
 
 
+@logger.catch
 def parsing_new_video_from_channel():
     """Функция проверки новых видео на канале и добавления их в базу"""
     threading.Timer(2400, parsing_new_video_from_channel).start()
@@ -439,10 +472,13 @@ def parsing_new_video_from_channel():
         all_urls.append("".join(url))
 
     for url in all_urls:
+        logger.info("Bot trying to get videos")
         DRIVER.get(url + "/videos")
+        logger.info("Bot trying to find elements on page by xpatch")
         date_of_publication = DRIVER.find_elements_by_xpath(
             "//span[@class='style-scope ytd-grid-video-renderer']"
         )[1].text
+        logger.info("Bot trying to find elements by id")
         videos = DRIVER.find_elements_by_id("video-title")
 
         if (
@@ -450,20 +486,21 @@ def parsing_new_video_from_channel():
             or date_of_publication == "1 hour ago"
         ):
             for attr in range(len(videos)):
+                logger.info("Bot trying to get attribute href and add to bd")
                 new_video = videos[attr].get_attribute("href")
                 channel_name = DRIVER.find_element_by_css_selector(
                     "#channel-header #channel-name #text"
                 ).text
                 c.execute(
-                    "INSERT INTO channel_list (video_url, title)\
-                    VALUES (?, ?);",
-                    (new_video, channel_name),
-                )
-                c.execute(
                     "CREATE TABLE query_channel AS SELECT title, rating\
                     FROM channel_list\
                     GROUP BY title\
                     HAVING rating NOT NULL"
+                )
+                c.execute(
+                    "INSERT INTO channel_list (video_url, title)\
+                    VALUES (?, ?);",
+                    (new_video, channel_name),
                 )
                 c.execute(
                     "UPDATE channel_list\
@@ -473,15 +510,22 @@ def parsing_new_video_from_channel():
                 )
                 c.execute("DROP TABLE query_channel")
                 sleep(3)
+                logger.info("Bot added video and ready to work")
                 conn.commit()
                 break
 
 
 if __name__ == "__main__":
+    logger.info("Bot started work")
     while True:
-        init_db()
-        thread2 = threading.Thread(target=parsing_new_video_from_channel())
-        thread2.start()
-        sleep(5)
-        thread1 = threading.Thread(target=BOT.polling(none_stop=True))
-        thread1.start()
+        try:
+            init_db()
+            thread2 = threading.Thread(target=parsing_new_video_from_channel())
+            thread2.start()
+            sleep(5)
+            thread1 = threading.Thread(target=BOT.polling(none_stop=True))
+            thread1.start()
+        except Exception as error:
+            logger.error(error)
+            BOT.send_message(TELEGRAM_CHAT_ID, f'Ошибка при запуске {error}')
+            sleep(30)
