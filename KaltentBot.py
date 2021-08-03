@@ -13,10 +13,10 @@ from telebot import types
 
 load_dotenv()
 logger.add(
-    "bot_debug.log", 
-    format="{time} {level} {message}", 
-    level="DEBUG", 
-    rotation= "10 MB",
+    "bot_debug.log",
+    format="{time} {level} {message}",
+    level="DEBUG",
+    rotation="10 MB",
     retention="7 days",
     compression="zip",
     )
@@ -39,12 +39,11 @@ chrome_options.add_argument("--no-sandbox")
 logger.info('bot trying to find chromedriver')
 try:
     DRIVER = webdriver.Chrome(
-        "/root/code/chromedriver", 
+        "/root/code/chromedriver",
         options=chrome_options)
 except Exception as error:
-    trouble = logger.error('invalid path to chromedriver')
+    trouble = logger.error(error, 'invalid path to chromedriver')
     BOT.send_message(TELEGRAM_CHAT_ID, trouble)
-
 
 
 __connection = None
@@ -479,7 +478,7 @@ def parsing_new_video_from_channel():
         )[1].text
         logger.info("Bot trying to find elements by id")
         videos = DRIVER.find_elements_by_id("video-title")
-        
+
         if (
             date_of_publication == "1 час назад"
             or date_of_publication == "1 hour ago"
@@ -513,6 +512,7 @@ def parsing_new_video_from_channel():
                 conn.commit()
                 break
         logger.info("No new videos were found")
+
 
 if __name__ == "__main__":
     logger.info("Bot started work")
