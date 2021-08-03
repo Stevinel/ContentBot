@@ -2,7 +2,6 @@ import datetime as dt
 import os
 import sqlite3
 import threading
-from logging import exception
 from time import sleep
 
 import telebot
@@ -144,7 +143,10 @@ def show_all_videos(message):
     conn = get_connection()
     c = conn.cursor()
     c.execute(
-        "SELECT DISTINCT(video_url) FROM channel_list WHERE video_url NOT NULL ORDER BY rating DESC"
+        "SELECT DISTINCT(video_url)\
+        FROM channel_list\
+        WHERE video_url NOT NULL\
+        ORDER BY rating DESC"
     )
     (urls) = c.fetchall()
 
@@ -181,7 +183,10 @@ def show_all_channels(message):
     c = conn.cursor()
 
     c.execute(
-        "SELECT DISTINCT(title) FROM channel_list WHERE title NOT NULL ORDER BY rating DESC"
+        "SELECT DISTINCT(title)\
+        FROM channel_list\
+        WHERE title NOT NULL\
+        ORDER BY rating DESC"
     )
     (channel_names) = c.fetchall()
 
@@ -221,7 +226,7 @@ def add_channel_raiting(message):
         msg = BOT.send_message(
             message.chat.id,
             "Введите рейтинг канала от 1 до 10\n"
-            "Видео будут упорядочены по рейтингу канала от высшего к меньшему.",
+            "Видео будут упорядочены по рейтингу канала от высшего к меньшему."
         )
         channel_url = message.text
         BOT.register_next_step_handler(msg, add_channel, channel_url)
@@ -374,7 +379,10 @@ def post_videos_to_watch(message):
     conn = get_connection()
     c = conn.cursor()
     c.execute(
-        "SELECT DISTINCT(video_url) FROM channel_list WHERE video_url NOT NULL ORDER BY rating DESC"
+        "SELECT DISTINCT(video_url)\
+        FROM channel_list\
+        WHERE video_url NOT NULL\
+        ORDER BY rating DESC"
     )
     (urls) = c.fetchall()
 
@@ -447,14 +455,21 @@ def parsing_new_video_from_channel():
                     "#channel-header #channel-name #text"
                 ).text
                 c.execute(
-                    "INSERT INTO channel_list (video_url, title) VALUES (?, ?);",
+                    "INSERT INTO channel_list (video_url, title)\
+                    VALUES (?, ?);",
                     (new_video, channel_name),
                 )
                 c.execute(
-                    "CREATE TABLE query_channel AS SELECT title, rating FROM channel_list GROUP BY title HAVING rating NOT NULL"
+                    "CREATE TABLE query_channel AS SELECT title, rating\
+                    FROM channel_list\
+                    GROUP BY title\
+                    HAVING rating NOT NULL"
                 )
                 c.execute(
-                    "UPDATE channel_list SET rating = (SELECT rating FROM query_channel WHERE channel_list.title = query_channel.title)"
+                    "UPDATE channel_list\
+                    SET rating =\
+                    (SELECT rating FROM query_channel\
+                    WHERE channel_list.title = query_channel.title)"
                 )
                 c.execute("DROP TABLE query_channel")
                 sleep(3)
