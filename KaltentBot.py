@@ -84,7 +84,7 @@ def init_db(force: bool = False):
 @logger.catch
 @BOT.message_handler(commands=["start"])
 def start_message(message):
-    """Функция приветствия"""
+    """Функция приветствует юзера и предлагает продолжить"""
     BOT.send_photo(
         message.chat.id,
         photo=PHOTO_GOBLIN_HELLO,
@@ -104,7 +104,7 @@ def start_message(message):
 @logger.catch
 @BOT.message_handler(commands=["menu"])
 def selects_actions(message):
-    """Функция меню с выбором действий"""
+    """Функция отображает все кнопки меню и предлагает выбрать действие"""
     markup = types.ReplyKeyboardMarkup(
         one_time_keyboard=True, resize_keyboard=True
     )
@@ -126,7 +126,8 @@ def selects_actions(message):
 @logger.catch
 @BOT.message_handler(content_types=["text"])
 def process_step(message, video_url=None):
-    """Функция распределения действий"""
+    """Функция распределяет дальнейшие действия в зависимости
+    от условия полученной команды"""
     if message.text == "🍻 Смотреть калтент":
         BOT.send_message(
             message.chat.id, "Начинаем просмотр, хорошей зачилки."
@@ -161,6 +162,7 @@ def process_step(message, video_url=None):
 
 @logger.catch
 def show_all_videos(message):
+    """Функция показывает все имеющиеся видео в БД"""
     conn = get_connection()
     c = conn.cursor()
     c.execute(
@@ -198,7 +200,7 @@ def show_all_videos(message):
 
 @logger.catch
 def show_all_channels(message):
-    """Функция просмотра всех каналов"""
+    """Функция показывает все имеющиеся каналы в БД"""
     conn = get_connection()
     c = conn.cursor()
 
@@ -234,14 +236,16 @@ def show_all_channels(message):
 @logger.catch
 @BOT.message_handler(commands=["add_channel_url"])
 def add_channel_url(message):
-    """Функция ввода ссылки"""
+    """Функция ожидает ссылку на канал и переходит к функции
+    ввода рейтинга для канала"""
     msg = BOT.send_message(message.chat.id, "Введите ссылку на канал.")
     BOT.register_next_step_handler(msg, add_channel_raiting)
 
 
 @logger.catch
 def add_channel_raiting(message):
-    """Функция ввода рейтинга и проверки ссылки"""
+    """Функция проверяет корректность ссылки на канал, если всё верно,
+    то переходит к следующей функции добавления канала"""
     if message.text.startswith(
         "https://www.youtube.com/"
     ) or message.text.startswith("https://youtube.com/"):
@@ -254,13 +258,13 @@ def add_channel_raiting(message):
         BOT.register_next_step_handler(msg, add_channel, channel_url)
     else:
         BOT.send_message(
-            message.chat.id, "Вы ввели неправильную ссылку, начните заново."
+            message.chat.id, "Вы ввели неправильные данные, начните заново."
         )
 
 
 @logger.catch
 def add_channel(message, channel_url):
-    """Функция добавления нового канала"""
+    """Функция Добавляет новый канала в БД"""
     conn = get_connection()
     c = conn.cursor()
 
@@ -303,7 +307,8 @@ def add_channel(message, channel_url):
 
 @logger.catch
 def query_delete_channel(message):
-    """Функция удаления канала"""
+    """Функция ожидает название канала для удаления и переходит
+    к следующей функции, которая удаляет канал"""
     msg = BOT.send_message(
         message.chat.id,
         "Введите канал для удаления:",
@@ -313,7 +318,7 @@ def query_delete_channel(message):
 
 @logger.catch
 def delete_channel(message):
-    """Функция удаления канала из базы"""
+    """Функция удаляет канал из базы данных"""
     conn = get_connection()
     c = conn.cursor()
 
@@ -336,7 +341,8 @@ def delete_channel(message):
 
 @logger.catch
 def add_url_new_videos(message):
-    """Функция добавления новых видео"""
+    """Функция ожидаает ссылку с видео и переходит в функции,
+    которая добавляет эту ссылку в БД"""
     BOT.send_message(
         message.chat.id, "Отправьте ссылку на видео, я добавлю его в базу."
     )
@@ -345,7 +351,7 @@ def add_url_new_videos(message):
 
 @logger.catch
 def add_new_video(message):
-    """Функция добавления нового видео в базу"""
+    """Функция добавляет новое видео в БД"""
     conn = get_connection()
     c = conn.cursor()
 
@@ -405,7 +411,7 @@ def deferral_video(message, video_url):
 
 @logger.catch
 def post_videos_to_watch(message):
-    """Функция выдачи видео для просмотра контента"""
+    """Функция достаёт из базы все видео и выдаёт их в очереди по одному"""
     conn = get_connection()
     c = conn.cursor()
     c.execute(
@@ -456,8 +462,13 @@ def post_videos_to_watch(message):
 
 
 @logger.catch
+def get_all_channel_urls_from_bd():
+    pass
+
+@logger.catch
 def parsing_new_video_from_channel():
-    """Функция проверки новых видео на канале и добавления их в базу"""
+    """Функция достаёт из базы все имеющиеся каналы,
+    проверяет есть ли на каналах новые видео"""
     threading.Timer(2400, parsing_new_video_from_channel).start()
 
     conn = get_connection()
