@@ -234,7 +234,6 @@ def show_all_channels(message):
 
 
 @logger.catch
-@BOT.message_handler(commands=["add_channel_url"])
 def add_channel_url(message):
     """Функция ожидает ссылку на канал и переходит к функции
     ввода рейтинга для канала"""
@@ -267,41 +266,58 @@ def add_channel(message, channel_url):
     """Функция Добавляет новый канала в БД"""
     conn = get_connection()
     c = conn.cursor()
+    try:
+        if (
+            channel_url.startswith("https://www.youtube.com/")
+            or channel_url.startswith("https://youtube.com/")
+            and 0 < int(message.text) <= 10
+        ):
+            BOT.send_photo(
+                message.chat.id, photo=PHOTO_ERIC_THINKING, caption="Я думаю..."
+            )
+            channel_url
+            rating = message.text
+            DRIVER.get(channel_url)
+            sleep(1)
 
-    if (
-        channel_url.startswith("https://www.youtube.com/")
-        or channel_url.startswith("https://youtube.com/")
-        and 0 < int(message.text) <= 10
-    ):
-        BOT.send_photo(
-            message.chat.id, photo=PHOTO_ERIC_THINKING, caption="Я думаю..."
-        )
-        channel_url
-        rating = message.text
-        DRIVER.get(channel_url)
-        sleep(1)
+            channel_name = DRIVER.find_element_by_css_selector(
+                "#channel-header #channel-name #text"
+            ).text
 
-        channel_name = DRIVER.find_element_by_css_selector(
-            "#channel-header #channel-name #text"
-        ).text
-        c.execute(
-            "INSERT INTO channel_list (url, title, rating) VALUES (?, ?, ?);",
-            (channel_url, channel_name, rating),
-        )
+            c.execute(
+            "SELECT DISTINCT(title)\
+            FROM channel_list\
+            WHERE title NOT NULL\
+            ORDER BY rating DESC"
+            )
+            
+            (all_channels) = c.fetchall()
+            channels_name = []
+            for name in all_channels:
+                channels_name.append("".join(name))
+            if channel_name not in channels_name:
+                c.execute(
+                    "INSERT INTO channel_list (url, title, rating) VALUES (?, ?, ?);",
+                    (channel_url, channel_name, rating),
+                )
 
-        markup = types.ReplyKeyboardMarkup(
-            one_time_keyboard=True, resize_keyboard=True
+                markup = types.ReplyKeyboardMarkup(
+                    one_time_keyboard=True, resize_keyboard=True
+                )
+                BOT.send_message(
+                    message.chat.id,
+                    f"Канал '{channel_name}' добавлен в базу.",
+                    reply_markup=markup,
+                )
+                markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
+                conn.commit()
+            else:
+                BOT.send_message(
+            message.chat.id, "Канал уже есть в базе"
         )
+    except:
         BOT.send_message(
-            message.chat.id,
-            f"Канал '{channel_name}' добавлен в базу.",
-            reply_markup=markup,
-        )
-        markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
-        conn.commit()
-    else:
-        BOT.send_message(
-            message.chat.id, "Вы ввели неправильную ссылку начните заново."
+            message.chat.id, "Вы ввели неправильную ссылку, начните заново."
         )
 
 
