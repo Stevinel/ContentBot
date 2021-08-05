@@ -108,7 +108,7 @@ def selects_actions(message):
     markup = types.ReplyKeyboardMarkup(
         one_time_keyboard=True, resize_keyboard=True
     )
-    markup.add(types.InlineKeyboardButton(text="🍻 Смотреть калтент"))
+    markup.add(types.InlineKeyboardButton(text="🍻 Смотреть контент"))
     markup.add(types.InlineKeyboardButton(text="📀 Добавить видео"))
     markup.add(types.InlineKeyboardButton(text="📹 Добавить канал"))
     markup.add(types.InlineKeyboardButton(text="👀 Показать все видео"))
@@ -128,7 +128,7 @@ def selects_actions(message):
 def process_step(message, video_url=None):
     """Функция распределяет дальнейшие действия в зависимости
     от условия полученной команды"""
-    if message.text == "🍻 Смотреть калтент":
+    if message.text == "🍻 Смотреть контент":
         BOT.send_message(
             message.chat.id, "Начинаем просмотр, хорошей зачилки."
         )
@@ -476,10 +476,6 @@ def post_videos_to_watch(message):
         BOT.send_message(message.chat.id, "Конец.", reply_markup=markup)
         BOT.register_next_step_handler(message, selects_actions)
 
-
-@logger.catch
-def get_all_channel_urls_from_bd():
-    pass
 
 @logger.catch
 def parsing_new_video_from_channel():
