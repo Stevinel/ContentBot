@@ -38,9 +38,7 @@ chrome_options.add_argument("--headless")
 chrome_options.add_argument("--no-sandbox")
 logger.info('bot trying to find chromedriver')
 try:
-    DRIVER = webdriver.Chrome(
-        "/root/code/chromedriver",
-        options=chrome_options)
+    DRIVER = webdriver.Chrome(executable_path='/code/chromedriver', options=chrome_options)
 except Exception as error:
     trouble = logger.error(error, 'invalid path to chromedriver')
     BOT.send_message(TELEGRAM_CHAT_ID, trouble)

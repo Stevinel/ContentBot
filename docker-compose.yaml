@@ -1,0 +1,7 @@
+version: '3.3'
+
+services:
+  bot:
+    image: stevinel/bot:latest
+    env_file:
+      - ./.env
