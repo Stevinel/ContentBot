@@ -23,7 +23,7 @@
 Всё что нам надо - добавить любимые каналы и бот сам соберёт для нас контент и отсортирует.
 
 ### Установка
-1) Склонируйте репозиторий
+1) Склонируйте репозиторий в папку /code/
    ```
     https://github.com/Stevinel/ContentBot
    ```
@@ -55,5 +55,5 @@
 * [Sqlite3]
 * [Selenium-webdriver]
 * [Telebot]
-* [unittests]
+* [Unittests]
 * [Docker]
