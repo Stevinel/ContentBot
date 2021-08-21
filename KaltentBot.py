@@ -94,7 +94,7 @@ def start_message(message):
         "Cмотрите описание бота и используйте команды.\n",
     )
     markup = types.ReplyKeyboardMarkup(
-        one_time_keyboard=True, resize_keyboard=True
+    one_time_keyboard=True, resize_keyboard=True
     )
     markup.add(types.InlineKeyboardButton(text="🐾 Продолжить"))
     msg = BOT.send_message(message.chat.id, "Продолжаем?", reply_markup=markup)
@@ -413,7 +413,7 @@ def delete_video(message, video_url):
     )
     markup.add(types.InlineKeyboardButton(text="👉 Следующее видео"))
 
-    BOT.send_message(message.chat.id, "Видео удалено.", reply_markup=markup)
+    BOT.send_message(message.chat.id, "Видео удалено.", reply_markup=MARKUP)
     conn.commit()
 
 
