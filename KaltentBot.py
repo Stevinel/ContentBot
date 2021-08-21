@@ -4,11 +4,10 @@ import sqlite3
 import threading
 from time import sleep
 
+import requests
 import telebot
 from dotenv import load_dotenv
 from loguru import logger
-from selenium import webdriver
-from selenium.webdriver.chrome.options import Options
 from telebot import types
 
 load_dotenv()
@@ -19,10 +18,13 @@ logger.add(
     rotation="10 MB",
     retention="7 days",
     compression="zip",
-    )
+)
 
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
+BOT = telebot.TeleBot(TELEGRAM_TOKEN)
+
 PHOTO_GOBLIN_HELLO = (
     "https://www.meme-arsenal.com/memes/990b461fea0832a44ab4f588e6cf37e0.jpg"
 )
@@ -30,18 +32,19 @@ PHOTO_PEPE_THINKING = (
     "https://www.meme-arsenal.com/memes/8b3ef2c65d5763539e34a9bd5bff7b9d.jpg"
 )
 PHOTO_ERIC_THINKING = "https://i.ytimg.com/vi/yDly4gmLLHg/mqdefault.jpg"
+GET_CHANNEL_BY_USERNAME = (
+    "https://youtube.googleapis.com/youtube/v3/"\
+    "channels?part=snippet&forUsername="
+)
+GET_CHANNEL_BY_ID = (
+    "https://youtube.googleapis.com/youtube/v3/channels?part=snippet&id="
+)
+SEARCH_VIDEO_BY_CHANNEL_ID = (
+    "https://www.googleapis.com/youtube/v3/"\
+    "search?order=date&part=snippet&channelId="
+)
+YOUTUBE_URL = "https://www.youtube.com/watch?v="
 DATE_FORMAT = "%d.%m.%Y"
-BOT = telebot.TeleBot(TELEGRAM_TOKEN)
-
-chrome_options = Options()
-chrome_options.add_argument("--headless")
-chrome_options.add_argument("--no-sandbox")
-logger.info('bot trying to find chromedriver')
-try:
-    DRIVER = webdriver.Chrome(executable_path='/code/chromedriver', options=chrome_options)
-except Exception as error:
-    trouble = logger.error(error, 'invalid path to chromedriver')
-    BOT.send_message(TELEGRAM_CHAT_ID, trouble)
 
 
 __connection = None
@@ -82,7 +85,7 @@ def init_db(force: bool = False):
 @logger.catch
 @BOT.message_handler(commands=["start"])
 def start_message(message):
-    """Функция приветствует юзера и предлагает продолжить"""
+    """Функция приветствует юзера и предлагает продолжить работу"""
     BOT.send_photo(
         message.chat.id,
         photo=PHOTO_GOBLIN_HELLO,
@@ -90,9 +93,8 @@ def start_message(message):
         f"Сегодня {dt.date.today().strftime(DATE_FORMAT)}\n"
         "Cмотрите описание бота и используйте команды.\n",
     )
-
     markup = types.ReplyKeyboardMarkup(
-        one_time_keyboard=True, resize_keyboard=True
+    one_time_keyboard=True, resize_keyboard=True
     )
     markup.add(types.InlineKeyboardButton(text="🐾 Продолжить"))
     msg = BOT.send_message(message.chat.id, "Продолжаем?", reply_markup=markup)
@@ -163,6 +165,7 @@ def show_all_videos(message):
     """Функция показывает все имеющиеся видео в БД"""
     conn = get_connection()
     c = conn.cursor()
+
     c.execute(
         "SELECT DISTINCT(video_url)\
         FROM channel_list\
@@ -171,27 +174,23 @@ def show_all_videos(message):
     )
     (urls) = c.fetchall()
 
+    markup = types.ReplyKeyboardMarkup(
+        one_time_keyboard=True, resize_keyboard=True
+    )
+
     if urls:
         all_urls = []
         for url in urls:
             all_urls.append("".join(url))
         for url in all_urls:
             BOT.send_message(message.chat.id, url)
-
-            markup = types.ReplyKeyboardMarkup(
-                one_time_keyboard=True, resize_keyboard=True
-            )
-            markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
-
+        markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
         BOT.send_message(
             message.chat.id,
             "Список окончен. Выберите действие:",
             reply_markup=markup,
         )
     else:
-        markup = types.ReplyKeyboardMarkup(
-            one_time_keyboard=True, resize_keyboard=True
-        )
         markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
         BOT.send_message(message.chat.id, "Нет видео.", reply_markup=markup)
 
@@ -249,7 +248,7 @@ def add_channel_raiting(message):
         msg = BOT.send_message(
             message.chat.id,
             "Введите рейтинг канала от 1 до 10\n"
-            "Видео будут упорядочены по рейтингу канала от высшего к меньшему."
+            "Видео будут упорядочены по рейтингу канала.",
         )
         channel_url = message.text
         BOT.register_next_step_handler(msg, add_channel, channel_url)
@@ -264,6 +263,7 @@ def add_channel(message, channel_url):
     """Функция Добавляет новый канала в БД"""
     conn = get_connection()
     c = conn.cursor()
+
     try:
         if (
             channel_url.startswith("https://www.youtube.com/")
@@ -271,52 +271,66 @@ def add_channel(message, channel_url):
             and 0 < int(message.text) <= 10
         ):
             BOT.send_photo(
-                message.chat.id, photo=PHOTO_ERIC_THINKING, caption="Я думаю..."
+                message.chat.id,
+                photo=PHOTO_ERIC_THINKING,
+                caption="Я думаю...",
             )
-            channel_url
             rating = message.text
-            DRIVER.get(channel_url)
-            sleep(1)
+            if len(channel_url.split("/")):
+                cut_link = channel_url.split("/")[4:]
+            eng_channel_name = cut_link[0]
+            name_lenght = len(eng_channel_name)
 
-            channel_name = DRIVER.find_element_by_css_selector(
-                "#channel-header #channel-name #text"
-            ).text
+            if name_lenght < 24:
+                response = requests.get(
+                    GET_CHANNEL_BY_USERNAME
+                    + eng_channel_name
+                    + "&key="
+                    + GOOGLE_API_KEY
+                )
+            else:
+                response = requests.get(
+                    GET_CHANNEL_BY_ID
+                    + eng_channel_name
+                    + "&key="
+                    + GOOGLE_API_KEY
+                )
+            sleep(1)
+            channel_name = response.json()["items"][0]["snippet"]["title"]
 
             c.execute(
-            "SELECT DISTINCT(title)\
-            FROM channel_list\
-            WHERE title NOT NULL\
-            ORDER BY rating DESC"
+                "SELECT DISTINCT(title)\
+                FROM channel_list\
+                WHERE title NOT NULL\
+                ORDER BY rating DESC"
             )
-            
+
             (all_channels) = c.fetchall()
             channels_name = []
             for name in all_channels:
                 channels_name.append("".join(name))
             if channel_name not in channels_name:
                 c.execute(
-                    "INSERT INTO channel_list (url, title, rating) VALUES (?, ?, ?);",
+                    "INSERT INTO channel_list(url, title, rating)\
+                    VALUES (?, ?, ?);",
                     (channel_url, channel_name, rating),
                 )
-
                 markup = types.ReplyKeyboardMarkup(
                     one_time_keyboard=True, resize_keyboard=True
-                )
+                    )
                 BOT.send_message(
                     message.chat.id,
                     f"Канал '{channel_name}' добавлен в базу.",
                     reply_markup=markup,
                 )
-                markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
+                markup.add(
+                    types.InlineKeyboardButton(text="👈 Вернуться в меню")
+                )
                 conn.commit()
             else:
-                BOT.send_message(
-            message.chat.id, "Канал уже есть в базе"
-        )
+                BOT.send_message(message.chat.id, "Канал уже есть в базе")
     except:
-        BOT.send_message(
-            message.chat.id, "Вы ввели неправильную ссылку, начните заново."
-        )
+        BOT.send_message(message.chat.id, "Вы ввели неправильные данные")
 
 
 @logger.catch
@@ -349,8 +363,8 @@ def delete_channel(message):
         BOT.send_message(message.chat.id, f"Канал '{channel_name}' удалён.")
         conn.commit()
     else:
-        BOT.send_message(message.chat.id, "В вашей базе нет такого канала.")
-        BOT.register_next_step_handler(message, delete_channel)
+        BOT.send_message
+        (message.chat.id, "В вашей базе нет такого канала, начните заново.")
 
 
 @logger.catch
@@ -376,8 +390,6 @@ def add_new_video(message):
             message.chat.id, photo=PHOTO_ERIC_THINKING, caption="Я думаю..."
         )
         video_url = message.text
-        DRIVER.get(video_url)
-        sleep(2)
         c.execute(
             "INSERT INTO channel_list (video_url) VALUES (?);", (video_url,)
         )
@@ -394,26 +406,26 @@ def delete_video(message, video_url):
     """Функция удаления видео из базы"""
     conn = get_connection()
     c = conn.cursor()
-    c.execute("DELETE FROM channel_list WHERE video_url IN (?);", (video_url,))
 
+    c.execute("DELETE FROM channel_list WHERE video_url IN (?);", (video_url,))
     markup = types.ReplyKeyboardMarkup(
         one_time_keyboard=True, resize_keyboard=True
     )
     markup.add(types.InlineKeyboardButton(text="👉 Следующее видео"))
 
-    BOT.send_message(message.chat.id, "Видео удалено.", reply_markup=markup)
+    BOT.send_message(message.chat.id, "Видео удалено.", reply_markup=MARKUP)
     conn.commit()
 
 
 @logger.catch
 def deferral_video(message, video_url):
+    """Функция пропустить видео"""
     conn = get_connection()
     c = conn.cursor()
     c.execute(
         "UPDATE channel_list SET rating = Null WHERE video_url IN(?);",
         (video_url,),
     )
-
     markup = types.ReplyKeyboardMarkup(
         one_time_keyboard=True, resize_keyboard=True
     )
@@ -435,7 +447,9 @@ def post_videos_to_watch(message):
         ORDER BY rating DESC"
     )
     (urls) = c.fetchall()
-
+    markup = types.ReplyKeyboardMarkup(
+        one_time_keyboard=True, resize_keyboard=True
+    )
     if urls:
         all_urls = []
         for url in urls:
@@ -443,18 +457,9 @@ def post_videos_to_watch(message):
         for url in all_urls:
             BOT.send_message(message.chat.id, url)
 
-            markup = types.ReplyKeyboardMarkup(
-                one_time_keyboard=True, resize_keyboard=True
-            )
-            markup.add(
-                types.InlineKeyboardButton(text="👉 Отложить видео")
-            )
-            markup.add(
-                types.InlineKeyboardButton(text="❌ Удалить видео")
-            )
-            markup.add(
-                types.InlineKeyboardButton(text="👈 Вернуться в меню")
-            )
+            markup.add(types.InlineKeyboardButton(text="👉 Отложить видео"))
+            markup.add(types.InlineKeyboardButton(text="❌ Удалить видео"))
+            markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
             msg = BOT.send_message(
                 message.chat.id, "Выберите действие:", reply_markup=markup
             )
@@ -466,9 +471,6 @@ def post_videos_to_watch(message):
             message.chat.id, "В базе не осталось видео для просмотра."
         )
 
-        markup = types.ReplyKeyboardMarkup(
-            one_time_keyboard=True, resize_keyboard=True
-        )
         markup.add(types.InlineKeyboardButton(text="👈 Вернуться в меню"))
 
         BOT.send_message(message.chat.id, "Конец.", reply_markup=markup)
@@ -479,59 +481,69 @@ def post_videos_to_watch(message):
 def parsing_new_video_from_channel():
     """Функция достаёт из базы все имеющиеся каналы,
     проверяет есть ли на каналах новые видео"""
-    threading.Timer(2400, parsing_new_video_from_channel).start()
+    threading.Timer(43200, parsing_new_video_from_channel).start()
 
     conn = get_connection()
     c = conn.cursor()
-    c.execute("SELECT url FROM channel_list WHERE url NOT NULL")
-    (urls) = c.fetchall()
+    c.execute("SELECT title, url FROM channel_list WHERE url NOT NULL")
+    (channel_name_and_url) = c.fetchall()
 
-    all_urls = []
-    for url in urls:
-        all_urls.append("".join(url))
-
-    for url in all_urls:
+    for title, url in channel_name_and_url:
         logger.info("Bot trying to get videos")
-        DRIVER.get(url + "/videos")
-        logger.info("Bot trying to find elements on page by xpatch")
-        date_of_publication = DRIVER.find_elements_by_xpath(
-            "//span[@class='style-scope ytd-grid-video-renderer']"
-        )[1].text
-        logger.info("Bot trying to find elements by id")
-        videos = DRIVER.find_elements_by_id("video-title")
+        sleep(2)
+        if len(url.split("/")):
+            cut_link = url.split("/")[4:]
+        eng_channel_name = cut_link[0]
+        name_lenght = len(eng_channel_name)
+        if name_lenght < 24:
+            get_channel_info = requests.get(
+                GET_CHANNEL_BY_USERNAME
+                + eng_channel_name
+                + "&key="
+                + GOOGLE_API_KEY
+            )
+        else:
+            get_channel_info = requests.get(
+                GET_CHANNEL_BY_ID + eng_channel_name + "&key=" + GOOGLE_API_KEY
+            )
+        channel_name = get_channel_info.json()["items"][0]["snippet"]["title"]
+        channel_id = get_channel_info.json()["items"][0]["id"]
+        search_new_video = requests.get(
+            SEARCH_VIDEO_BY_CHANNEL_ID
+            + channel_id
+            + "&maxResults=30&key="
+            + GOOGLE_API_KEY
+        )
+        date_of_publication = search_new_video.json()["items"][0]["snippet"][
+            "publishedAt"
+        ][:10]
+        video_id = search_new_video.json()["items"][0]["id"]["videoId"]
+        new_video = YOUTUBE_URL + video_id
+        date_today = str(dt.date.today())
 
-        if (
-            date_of_publication == "1 час назад"
-            or date_of_publication == "1 hour ago"
-        ):
-            for attr in range(len(videos)):
-                logger.info("Bot trying to get attribute href and add to bd")
-                new_video = videos[attr].get_attribute("href")
-                channel_name = DRIVER.find_element_by_css_selector(
-                    "#channel-header #channel-name #text"
-                ).text
-                c.execute(
-                    "CREATE TABLE query_channel AS SELECT title, rating\
-                    FROM channel_list\
-                    GROUP BY title\
-                    HAVING rating NOT NULL"
-                )
-                c.execute(
-                    "INSERT INTO channel_list (video_url, title)\
-                    VALUES (?, ?);",
-                    (new_video, channel_name),
-                )
-                c.execute(
-                    "UPDATE channel_list\
-                    SET rating =\
-                    (SELECT rating FROM query_channel\
-                    WHERE channel_list.title = query_channel.title)"
-                )
-                c.execute("DROP TABLE query_channel")
-                sleep(3)
-                logger.info("Bot added video and ready to work")
-                conn.commit()
-                break
+        if date_of_publication == date_today:
+            c.execute(
+                "CREATE TABLE query_channel AS SELECT title, rating\
+                FROM channel_list\
+                GROUP BY title\
+                HAVING rating NOT NULL"
+            )
+            c.execute(
+                "INSERT INTO channel_list (video_url, title)\
+                VALUES (?, ?);",
+                (new_video, channel_name),
+            )
+            c.execute(
+                "UPDATE channel_list\
+                SET rating =\
+                (SELECT rating FROM query_channel\
+                WHERE channel_list.title = query_channel.title)"
+            )
+            c.execute("DROP TABLE query_channel")
+            sleep(1)
+            logger.info("Bot added video")
+            conn.commit()
+        sleep(2)
         logger.info("No new videos were found")
 
 
@@ -547,5 +559,5 @@ if __name__ == "__main__":
             thread1.start()
         except Exception as error:
             logger.error(error)
-            BOT.send_message(TELEGRAM_CHAT_ID, f'Error at startup {error}')
+            BOT.send_message(TELEGRAM_CHAT_ID, f"Error at startup {error}")
             sleep(30)
