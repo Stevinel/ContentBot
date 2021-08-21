@@ -23,7 +23,7 @@
 Всё что нам надо - добавить любимые каналы и бот сам соберёт для нас контент и отсортирует.
 
 ### Установка
-1) Склонируйте репозиторий в папку /code/
+1) Склонируйте репозиторий
    ```
     https://github.com/Stevinel/ContentBot
    ```
@@ -31,6 +31,7 @@
    ```
    TELEGRAM_TOKEN - токен вашего бота
    TELEGRAM_CHAT_ID - ваш телеграм id
+   GOOGLE_API_KEY - ваш API-KEY (получить можно в google-cloud-platform) https://console.cloud.google.com/apis/
    ```
    Необязательно, но можно добавить переменные, для запуска тестов.
    Получить цифры для переменных можно здесь > https://my.telegram.org/auth
@@ -53,7 +54,8 @@
 ### Используемый стек
 * [Python]
 * [Sqlite3]
-* [Selenium-webdriver]
+* [Youtube-API]
+* [Selenium-webdriver] - (Устарел, использовался в 1ой версии бота)
 * [Telebot]
 * [Unittests]
 * [Docker]
