@@ -33,15 +33,22 @@ PHOTO_PEPE_THINKING = (
 )
 PHOTO_ERIC_THINKING = "https://i.ytimg.com/vi/yDly4gmLLHg/mqdefault.jpg"
 GET_CHANNEL_BY_USERNAME = (
-    "https://youtube.googleapis.com/youtube/v3/"\
+    "https://youtube.googleapis.com/youtube/v3/"
     "channels?part=snippet&forUsername="
 )
 GET_CHANNEL_BY_ID = (
     "https://youtube.googleapis.com/youtube/v3/channels?part=snippet&id="
 )
 SEARCH_VIDEO_BY_CHANNEL_ID = (
-    "https://www.googleapis.com/youtube/v3/"\
+    "https://www.googleapis.com/youtube/v3/"
     "search?order=date&part=snippet&channelId="
+)
+SEARCH_BROKEN_CHANNEL = (
+    "https://youtube.googleapis.com/youtube/v3/"
+    "search?part=snippet&maxResults=5&q="
+)
+GET_CHANNEL_ID_FROM_VIDEO = (
+    "https://youtube.googleapis.com/youtube/v3/videos?part=snippet&id="
 )
 YOUTUBE_URL = "https://www.youtube.com/watch?v="
 DATE_FORMAT = "%d.%m.%Y"
@@ -296,7 +303,18 @@ def add_channel(message, channel_url):
                     + GOOGLE_API_KEY
                 )
             sleep(1)
-            channel_name = response.json()["items"][0]["snippet"]["title"]
+            if "items" not in response:
+                response = requests.get(
+                    SEARCH_BROKEN_CHANNEL
+                    + eng_channel_name
+                    + "&key="
+                    + GOOGLE_API_KEY
+                )
+                channel_name = response.json()["items"][0]["snippet"][
+                    "channelTitle"
+                ]
+            else:
+                channel_name = response.json()["items"][0]["snippet"]["title"]
 
             c.execute(
                 "SELECT DISTINCT(title)\
@@ -317,7 +335,7 @@ def add_channel(message, channel_url):
                 )
                 markup = types.ReplyKeyboardMarkup(
                     one_time_keyboard=True, resize_keyboard=True
-                    )
+                )
                 BOT.send_message(
                     message.chat.id,
                     f"Канал '{channel_name}' добавлен в базу.",
@@ -389,10 +407,41 @@ def add_new_video(message):
         BOT.send_photo(
             message.chat.id, photo=PHOTO_ERIC_THINKING, caption="Я думаю..."
         )
+        sleep(1.5)
         video_url = message.text
-        c.execute(
-            "INSERT INTO channel_list (video_url) VALUES (?);", (video_url,)
+
+        if len(message.text.split("/")):
+            cut_link = message.text.split("=")
+            eng_channel_name = cut_link[1]
+
+        response = requests.get(
+            GET_CHANNEL_ID_FROM_VIDEO
+            + eng_channel_name
+            + "&key="
+            + GOOGLE_API_KEY
         )
+        channel_name = response.json()["items"][0]["snippet"]["channelTitle"]
+
+        c.execute(
+            "CREATE TABLE query_channel AS SELECT title, rating\
+            FROM channel_list\
+            GROUP BY title\
+            HAVING rating NOT NULL"
+        )
+        c.execute(
+            "INSERT INTO channel_list (title, video_url) VALUES (?, ?);",
+            (channel_name, video_url),
+        )
+        c.executescript(
+            "UPDATE channel_list\
+            SET rating =\
+            (SELECT rating FROM query_channel\
+            WHERE channel_list.title = query_channel.title);\
+            UPDATE channel_list\
+            SET rating = 0\
+            WHERE (rating IS NULL)"
+        )
+        c.execute("DROP TABLE query_channel")
         BOT.send_message(message.chat.id, "Видео добавлено.")
         conn.commit()
     else:
@@ -481,7 +530,6 @@ def post_videos_to_watch(message):
 def parsing_new_video_from_channel():
     """Функция достаёт из базы все имеющиеся каналы,
     проверяет есть ли на каналах новые видео"""
-    threading.Timer(43200, parsing_new_video_from_channel).start()
 
     conn = get_connection()
     c = conn.cursor()
@@ -506,8 +554,24 @@ def parsing_new_video_from_channel():
             get_channel_info = requests.get(
                 GET_CHANNEL_BY_ID + eng_channel_name + "&key=" + GOOGLE_API_KEY
             )
-        channel_name = get_channel_info.json()["items"][0]["snippet"]["title"]
-        channel_id = get_channel_info.json()["items"][0]["id"]
+        if "items" not in get_channel_info:
+            get_channel_info = requests.get(
+                SEARCH_BROKEN_CHANNEL
+                + eng_channel_name
+                + "&key="
+                + GOOGLE_API_KEY
+            )
+            channel_name = get_channel_info.json()["items"][0]["snippet"][
+                "channelTitle"
+            ]
+            channel_id = get_channel_info.json()["items"][0]["snippet"][
+                "channelId"
+            ]
+        else:
+            channel_name = get_channel_info.json()["items"][0]["snippet"][
+                "title"
+            ]
+            channel_id = get_channel_info.json()["items"][0]["id"]
         search_new_video = requests.get(
             SEARCH_VIDEO_BY_CHANNEL_ID
             + channel_id
@@ -517,10 +581,13 @@ def parsing_new_video_from_channel():
         date_of_publication = search_new_video.json()["items"][0]["snippet"][
             "publishedAt"
         ][:10]
-        video_id = search_new_video.json()["items"][0]["id"]["videoId"]
-        new_video = YOUTUBE_URL + video_id
+        video_id = search_new_video.json()["items"][0]["id"]
+        video_id_in_broken_channels = search_new_video.json()["items"][1]["id"]
+        if "videoId" in video_id:
+            new_video = YOUTUBE_URL + video_id["videoId"]
+        else:
+            new_video = YOUTUBE_URL + video_id_in_broken_channels["videoId"]
         date_today = str(dt.date.today())
-
         if date_of_publication == date_today:
             c.execute(
                 "CREATE TABLE query_channel AS SELECT title, rating\
@@ -543,8 +610,9 @@ def parsing_new_video_from_channel():
             sleep(1)
             logger.info("Bot added video")
             conn.commit()
-        sleep(2)
-        logger.info("No new videos were found")
+        else:
+            logger.info("No new videos were found")
+    logger.info("Parsing done")
 
 
 if __name__ == "__main__":
@@ -554,7 +622,8 @@ if __name__ == "__main__":
             init_db()
             thread2 = threading.Thread(target=parsing_new_video_from_channel())
             thread2.start()
-            sleep(5)
+            threading.Timer(43200, parsing_new_video_from_channel).start()
+            sleep(15)
             thread1 = threading.Thread(target=BOT.polling(none_stop=True))
             thread1.start()
         except Exception as error:
