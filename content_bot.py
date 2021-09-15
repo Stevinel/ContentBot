@@ -411,8 +411,12 @@ def add_new_video(message):
         video_url = message.text
 
         if len(message.text.split("/")):
-            cut_link = message.text.split("=")
-            eng_channel_name = cut_link[1]
+            if "=" in message.text:
+                cut_link = message.text.split("=")
+                eng_channel_name = cut_link[1]
+            else:
+                cut_link = message.text.split("/")[3:]
+                eng_channel_name = cut_link[0]
 
         response = requests.get(
             GET_CHANNEL_ID_FROM_VIDEO
@@ -622,7 +626,7 @@ if __name__ == "__main__":
             init_db()
             thread2 = threading.Thread(target=parsing_new_video_from_channel())
             thread2.start()
-            threading.Timer(43200, parsing_new_video_from_channel).start()
+            threading.Timer(86400, parsing_new_video_from_channel).start()
             sleep(15)
             thread1 = threading.Thread(target=BOT.polling(none_stop=True))
             thread1.start()
