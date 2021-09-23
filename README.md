@@ -60,3 +60,7 @@
 * [Loguru]
 * [Unittests]
 * [Docker]
+
+### Изображение
+
+![image](https://user-images.githubusercontent.com/72396348/134493595-a0afce60-334c-447b-8ae4-5244e602518d.png)
