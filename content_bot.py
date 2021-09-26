@@ -211,7 +211,7 @@ def show_all_channels(message):
     c.execute(
         "SELECT DISTINCT(title)\
         FROM channel_list\
-        WHERE title NOT NULL\
+        WHERE title NOT NULL AND url NOT NULL\
         ORDER BY rating DESC"
     )
     (channel_names) = c.fetchall()
@@ -376,7 +376,7 @@ def delete_channel(message):
         all_names.append("".join(name))
     if channel_name in all_names:
         c.execute(
-            "DELETE FROM channel_list WHERE title IN (?);", (channel_name,)
+            "DELETE FROM channel_list WHERE title IN (?) AND url NOT NULL;", (channel_name,)
         )
         BOT.send_message(message.chat.id, f"Канал '{channel_name}' удалён.")
         conn.commit()
@@ -534,7 +534,7 @@ def post_videos_to_watch(message):
 def parsing_new_video_from_channel():
     """Функция достаёт из базы все имеющиеся каналы,
     проверяет есть ли на каналах новые видео"""
-
+    threading.Timer(86400, parsing_new_video_from_channel).start()
     conn = get_connection()
     c = conn.cursor()
     c.execute("SELECT title, url FROM channel_list WHERE url NOT NULL")
@@ -626,7 +626,6 @@ if __name__ == "__main__":
             init_db()
             thread2 = threading.Thread(target=parsing_new_video_from_channel())
             thread2.start()
-            threading.Timer(86400, parsing_new_video_from_channel).start()
             sleep(15)
             thread1 = threading.Thread(target=BOT.polling(none_stop=True))
             thread1.start()
